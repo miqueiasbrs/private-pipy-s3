@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "private-pipy-s3"
+version = "1.0.0"
+description =  "An API and services for backoffice teams"
+authors = ["Lets Delivery Teams <devteams@lets.delivery>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+botocore-stubs = "^1.21.56"
+boto3-stubs = {extras = ["all"], version = "^1.18.56"}
+boto3 = "^1.20.15"
+pre-commit = "^2.15.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
