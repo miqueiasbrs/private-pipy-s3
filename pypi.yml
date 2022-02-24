@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Resource management for the PyPi repository
+
+
+Parameters:
+  PyPiRepositoryName:
+    Description: PyPi Repository Name
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: artifact
+  PyPiDomainName:
+    Description: PyPi Domain Name
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: pypi.domain.name
+  AcmCertificateArn:
+    Description: ACM Certificate ARN
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: acm_arn
+
+  ArtifactBucket:
+    Description: Artifact bucket Reference
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: bayer
+  ArtifactPackage:
+    Description: Artifact package Reference
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: app.zip
+  ArtifactPackageVersion:
+    Description: Artifact package version Reference
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: version
+
+Resources:
+  PyPiCloudFrontOriginIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'origin identity'
+
+  PyPiRepositoryBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName: !Ref PyPiRepositoryName
+  PyPiRepositoryBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: PyPiRepositoryBucket
+    Properties:
+      Bucket: !Ref PyPiRepositoryBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${PyPiCloudFrontOriginIdentity}'
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub arn:aws:s3:::${PyPiRepositoryBucket}/*
+  
+  PyPiCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn:
+      - PyPiRepositoryBucket
+      - PyPiRepositoryBucketPolicy
+      - PyPiCloudFrontOriginIdentity
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref PyPiDomainName
+        DefaultRootObject: /index.html
+        Origins:
+          -
+            Id: !GetAtt PyPiRepositoryBucket.DomainName
+            DomainName: !GetAtt PyPiRepositoryBucket.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${PyPiCloudFrontOriginIdentity}
+            OriginShield:
+              Enabled: false
+        DefaultCacheBehavior:
+          TargetOriginId: !GetAtt PyPiRepositoryBucket.DomainName
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          SmoothStreaming: false
+          Compress: true
+          ForwardedValues:
+            QueryString: true
+        Comment: PyPi Repository Distribution
+        Enabled: true
+        ViewerCertificate:
+          SslSupportMethod: sni-only
+          AcmCertificateArn: !Ref AcmCertificateArn
+        HttpVersion: http2
+        IPV6Enabled: true
+
+  PyPiRepositoryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/CloudFrontReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      Path: /
+      RoleName: PyPiRepositoryRole
+  PyPiRepositoryLambda:
+    Type: AWS::Lambda::Function
+    DependsOn: PyPiRepositoryRole
+    Properties:
+      Description: PyPi Repository Manager
+      Code:
+        S3Bucket: !Ref ArtifactBucket
+        S3Key: !Ref ArtifactPackage
+        S3ObjectVersion: !Ref ArtifactPackageVersion
+      Handler: auth.handler
+      MemorySize: 128
+      Timeout: 5
+      Role: !GetAtt PyPiRepositoryRole.Arn
+      Runtime: python3.8

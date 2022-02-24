@@ -1,18 +1,48 @@
 [tool.poetry]
-name = "private-pipy-s3"
+name = "aws-pypi-s3"
+description =  "Manage PyPi private repository on AWS S3"
+
+license = "MIT"
 version = "1.0.0"
-description =  "An API and services for backoffice teams"
-authors = ["Lets Delivery Teams <devteams@lets.delivery>"]
+readme = "README.md"
+
+packages = [
+    { include = "aws-pypi-s3" }
+]
+
+
+homepage = "https://github.com/miqueiasbrs/private-pipy-s3"
+documentation = "https://github.com/miqueiasbrs/private-pipy-s3"
+repository = "https://github.com/miqueiasbrs/private-pipy-s3.git"
+
+keywords = [
+    "S3",
+    "PyPi",
+    "Package",
+    "Repository",
+    "CloudFront"
+]
+
+classifiers = [
+    "Topic :: Software Development",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Software Development :: Build Tools"
+]
+
+authors = ["Miqueias Barros Rosa da Silva <miqueias@capybaracode.com>"]
+maintainers = ["Miqueias Barros Rosa da Silva <miqueias@capybaracode.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
+Jinja2 = "^3.0.3"
 
 [tool.poetry.dev-dependencies]
 botocore-stubs = "^1.21.56"
-boto3-stubs = {extras = ["all"], version = "^1.18.56"}
+boto3-stubs = {extras = ["cloudfront", "s3"], version = "^1.21.3"}
 boto3 = "^1.20.15"
 pre-commit = "^2.15.0"
+awslambdalocal = "^1.0.8"
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
